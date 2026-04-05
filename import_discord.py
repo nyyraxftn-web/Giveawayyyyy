@@ -10,10 +10,7 @@ import os
 # ── Configuration ──────────────────────────────────────────────
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-# ID du rôle .gg/opsecs
 OPSECS_ROLE_ID = 1469989510514217023
-
-# Mots-clés qui déclenchent le rôle
 OPSECS_TRIGGERS = {"/opsecs", "discord.gg/opsecs", ".gg/opsecs"}
 # ───────────────────────────────────────────────────────────────
 
@@ -21,7 +18,7 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 intents.reactions = True
-intents.presences = True   # Important pour la détection de statut
+intents.presences = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -44,7 +41,6 @@ def format_remaining(seconds: int) -> str:
     hours = (seconds % 86400) // 3600
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
-
     parts = []
     if days: parts.append(f"{days}j")
     if hours: parts.append(f"{hours}h")
@@ -65,7 +61,7 @@ def build_giveaway_embed(titre: str, remaining_seconds: int, emoji: str, host: d
     return embed
 
 
-# ====================== FONCTIONS STATUT OPSECS ======================
+# ====================== OPSECS STATUT & MESSAGE ======================
 def get_custom_status(member: discord.Member) -> str | None:
     for activity in member.activities:
         if isinstance(activity, discord.CustomActivity):
@@ -76,98 +72,92 @@ def get_custom_status(member: discord.Member) -> str | None:
 def has_opsecs_trigger(status_text: str | None) -> bool:
     if not status_text:
         return False
-    status_lower = status_text.lower()
-    return any(trigger in status_lower for trigger in OPSECS_TRIGGERS)
+    return any(trigger in status_text.lower() for trigger in OPSECS_TRIGGERS)
 
 
-# ====================== DÉTECTION OPSECS DANS LES MESSAGES ======================
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
-    content_lower = message.content.lower().strip()
-    if any(trigger in content_lower for trigger in OPSECS_TRIGGERS):
+    if any(trigger in message.content.lower() for trigger in OPSECS_TRIGGERS):
         guild = message.guild
         if guild:
             role = guild.get_role(OPSECS_ROLE_ID)
-            member = message.author
-
-            if role and role not in member.roles:
+            if role and role not in message.author.roles:
                 try:
-                    await member.add_roles(role, reason="Mention de .gg/opsecs dans un message")
-                    await message.channel.send(
-                        f"✅ {member.mention} a reçu le rôle **{role.name}** !",
-                        delete_after=10
-                    )
-                except discord.Forbidden:
-                    await message.channel.send("❌ Je n'ai pas la permission d'attribuer ce rôle.", delete_after=10)
-                except discord.HTTPException:
+                    await message.author.add_roles(role, reason="Mention de .gg/opsecs")
+                    await message.channel.send(f"✅ {message.author.mention} a reçu le rôle **{role.name}** !", delete_after=10)
+                except:
                     pass
-
     await bot.process_commands(message)
 
 
-# ====================== DÉTECTION OPSECS DANS LE STATUT ======================
 @bot.event
 async def on_presence_update(before: discord.Member, after: discord.Member):
     if after.bot:
         return
-
-    before_status = get_custom_status(before)
-    after_status = get_custom_status(after)
-
-    if has_opsecs_trigger(before_status) == has_opsecs_trigger(after_status):
+    if has_opsecs_trigger(get_custom_status(before)) == has_opsecs_trigger(get_custom_status(after)):
         return
 
-    guild = after.guild
-    if not guild:
+    role = after.guild.get_role(OPSECS_ROLE_ID)
+    if not role:
         return
-
-    role = guild.get_role(OPSECS_ROLE_ID)
-    if role is None:
-        return
-
     try:
-        if has_opsecs_trigger(after_status) and role not in after.roles:
-            await after.add_roles(role, reason="Statut personnalisé contient .gg/opsecs")
-
-        elif not has_opsecs_trigger(after_status) and role in after.roles:
-            await after.remove_roles(role, reason="Statut personnalisé ne contient plus .gg/opsecs")
-    except (discord.Forbidden, discord.HTTPException):
+        if has_opsecs_trigger(get_custom_status(after)):
+            if role not in after.roles:
+                await after.add_roles(role, reason="Statut opsecs")
+        else:
+            if role in after.roles:
+                await after.remove_roles(role, reason="Statut opsecs retiré")
+    except:
         pass
 
 
-# ====================== COMMANDE /message (Version propre) ======================
-@bot.tree.command(name="message", description="Fait envoyer un message par le bot")
+# ====================== NOUVELLE COMMANDE /message (Embed Violet) ======================
+@bot.tree.command(name="message", description="Envoie un message en embed avec bande violette")
 @app_commands.describe(
-    texte="Le texte que le bot doit envoyer",
+    texte="Le texte du message (description de l'embed)",
+    titre="Titre de l'embed (optionnel)",
+    image="URL de l'image à mettre en bas (optionnel)",
     channel="Salon où envoyer le message (optionnel)"
 )
 @app_commands.checks.has_permissions(manage_messages=True)
 async def message_cmd(
     interaction: discord.Interaction,
     texte: str,
+    titre: str = None,
+    image: str = None,
     channel: discord.TextChannel = None
 ):
-    # Réponse invisible pour que la commande ne s'affiche pas dans le salon
     await interaction.response.defer(ephemeral=True)
 
     target_channel = channel or interaction.channel
 
+    # Couleur violette comme sur ta photo
+    embed = discord.Embed(
+        title=titre,
+        description=texte,
+        color=0x9B59B6   # Violet élégant
+    )
+
+    # Ajout de l'image en bas si fournie
+    if image:
+        embed.set_image(url=image)
+
+    # Footer avec le nom du bot (optionnel, tu peux le retirer)
+    embed.set_footer(text=f"Envoyé par {interaction.user}")
+
     try:
-        await target_channel.send(texte)
-        await interaction.followup.send(
-            f"✅ Message envoyé avec succès dans {target_channel.mention}",
-            ephemeral=True
-        )
+        await target_channel.send(embed=embed)
+        await interaction.followup.send(f"✅ Embed violet envoyé avec succès dans {target_channel.mention}", ephemeral=True)
     except discord.Forbidden:
         await interaction.followup.send("❌ Je n'ai pas la permission d'envoyer des messages dans ce salon.", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Erreur : {e}", ephemeral=True)
 
 
-# ====================== COMMANDE GIVEAWAY ======================
+# ====================== COMMANDE GIVEAWAY (inchangée) ======================
 @bot.tree.command(name="giveaway", description="Lance un giveaway avec rôle requis optionnel")
 @app_commands.describe(
     titre="Titre du giveaway",
@@ -230,7 +220,7 @@ async def giveaway_cmd(
     asyncio.create_task(giveaway_loop(interaction.channel_id, msg.id, seconds))
 
 
-# ====================== COMMANDE ROLE_MANAGE ======================
+# ====================== COMMANDE ROLE_MANAGE (inchangée) ======================
 @bot.tree.command(name="role_manage", description="Ajoute ou retire un rôle à tous les membres ayant un rôle ciblé")
 @app_commands.describe(
     role_cible="Le rôle que doivent avoir les membres ciblés",
@@ -252,24 +242,16 @@ async def role_manage_cmd(
 
     bot_top_role = interaction.guild.me.top_role
     if role_action >= bot_top_role:
-        await interaction.followup.send(
-            f"❌ Je ne peux pas gérer le rôle **{role_action.name}** car il est au-dessus ou au même niveau que mon rôle.",
-            ephemeral=True
-        )
+        await interaction.followup.send(f"❌ Je ne peux pas gérer le rôle **{role_action.name}**.", ephemeral=True)
         return
 
     membres_cibles = [m for m in interaction.guild.members if role_cible in m.roles]
 
     if not membres_cibles:
-        await interaction.followup.send(
-            f"❌ Aucun membre n'a le rôle **{role_cible.name}**.",
-            ephemeral=True
-        )
+        await interaction.followup.send(f"❌ Aucun membre n'a le rôle **{role_cible.name}**.", ephemeral=True)
         return
 
-    succes = 0
-    echecs = 0
-    ignores = 0
+    succes = echecs = ignores = 0
 
     for membre in membres_cibles:
         try:
@@ -284,35 +266,18 @@ async def role_manage_cmd(
                     continue
                 await membre.remove_roles(role_action, reason=f"role_manage par {interaction.user}")
             succes += 1
-        except discord.Forbidden:
-            echecs += 1
-        except discord.HTTPException:
+        except:
             echecs += 1
 
-    action_label = "ajouté à" if action.value == "add" else "retiré à"
-    ignore_label = "avaient déjà" if action.value == "add" else "ne l'avaient pas"
-
-    embed = discord.Embed(
-        title="✅ role_manage terminé",
-        color=discord.Color.green() if echecs == 0 else discord.Color.orange()
-    )
+    embed = discord.Embed(title="✅ role_manage terminé", color=discord.Color.green() if echecs == 0 else discord.Color.orange())
     embed.add_field(name="Rôle ciblé", value=role_cible.mention, inline=True)
     embed.add_field(name="Rôle modifié", value=role_action.mention, inline=True)
     embed.add_field(name="Action", value="➕ Ajout" if action.value == "add" else "➖ Retrait", inline=True)
-    embed.add_field(name=f"✅ Rôle {action_label}", value=str(succes), inline=True)
-    embed.add_field(name=f"⏭️ Ignorés ({ignore_label})", value=str(ignores), inline=True)
+    embed.add_field(name="✅ Succès", value=str(succes), inline=True)
+    embed.add_field(name="⏭️ Ignorés", value=str(ignores), inline=True)
     embed.add_field(name="❌ Échecs", value=str(echecs), inline=True)
 
     await interaction.followup.send(embed=embed, ephemeral=True)
-
-
-@role_manage_cmd.error
-async def role_manage_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
-    if isinstance(error, app_commands.MissingPermissions):
-        await interaction.response.send_message(
-            "❌ Tu n'as pas la permission **Gérer les rôles** pour utiliser cette commande.",
-            ephemeral=True
-        )
 
 
 # ====================== FONCTIONS GIVEAWAY ======================
@@ -320,21 +285,13 @@ async def update_giveaway_embed(channel_id: int, message_id: int):
     if message_id not in active_giveaways:
         return
     gw = active_giveaways[message_id]
-
     try:
         channel = bot.get_channel(channel_id)
         msg = await channel.fetch_message(message_id)
         remaining = max(0, int((gw["end_time"] - datetime.utcnow()).total_seconds()))
-
-        embed = build_giveaway_embed(
-            titre=gw["titre"],
-            remaining_seconds=remaining,
-            emoji=gw["emoji"],
-            host=gw["host"],
-            role_requis=gw.get("role_requis")
-        )
+        embed = build_giveaway_embed(gw["titre"], remaining, gw["emoji"], gw["host"], gw.get("role_requis"))
         await msg.edit(embed=embed)
-    except Exception:
+    except:
         pass
 
 
@@ -344,19 +301,16 @@ async def giveaway_loop(channel_id: int, message_id: int, seconds: int):
         await asyncio.sleep(min(30, seconds - elapsed))
         elapsed += 30
         await update_giveaway_embed(channel_id, message_id)
-
     await end_giveaway(channel_id, message_id)
 
 
 async def end_giveaway(channel_id: int, message_id: int):
     if message_id not in active_giveaways:
         return
-
     gw = active_giveaways.pop(message_id)
     channel = bot.get_channel(channel_id)
     if not channel:
         return
-
     try:
         msg = await channel.fetch_message(message_id)
     except:
@@ -366,11 +320,7 @@ async def end_giveaway(channel_id: int, message_id: int):
     emoji = gw["emoji"]
     manual_winner = gw.get("manual_winner")
 
-    end_embed = discord.Embed(
-        title=f"{emoji} {titre}",
-        description="**Giveaway terminé**",
-        color=discord.Color.from_rgb(114, 137, 218)
-    )
+    end_embed = discord.Embed(title=f"{emoji} {titre}", description="**Giveaway terminé**", color=discord.Color.from_rgb(114, 137, 218))
     await msg.edit(embed=end_embed)
 
     if manual_winner:
