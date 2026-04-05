@@ -3,18 +3,25 @@ from discord import app_commands
 from discord.ext import commands
 import asyncio
 import random
-import os
 from datetime import datetime, timedelta
 import re
+import os
 
 # ── Configuration ──────────────────────────────────────────────
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+
+# ID du rôle .gg/opsecs à attribuer
+OPSECS_ROLE_ID = 1469989510514217023
+
+# Mots-clés qui déclenchent l'attribution du rôle
+OPSECS_TRIGGERS = {"/opsecs", "discord.gg/opsecs", ".gg/opsecs"}
 # ───────────────────────────────────────────────────────────────
 
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 intents.reactions = True
+intents.presences = True  # ← IMPORTANT : nécessaire pour détecter les changements de statut
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -56,6 +63,107 @@ def build_giveaway_embed(titre: str, remaining_seconds: int, emoji: str, host: d
         embed.add_field(name="", value=f"**Rôle requis :** {role_requis.mention}", inline=False)
     embed.add_field(name="", value=f"**Temps restant :** {format_remaining(remaining_seconds)}", inline=False)
     return embed
+
+
+# ====================== FONCTIONS POUR LE STATUT ======================
+def get_custom_status(member: discord.Member) -> str | None:
+    """Retourne le texte du statut personnalisé (Custom Status) s'il existe."""
+    for activity in member.activities:
+        if isinstance(activity, discord.CustomActivity):
+            return activity.name  # C'est le texte que l'utilisateur a écrit dans son statut
+    return None
+
+
+def has_opsecs_trigger(status_text: str | None) -> bool:
+    """Vérifie si le statut contient un des mots-clés opsecs."""
+    if not status_text:
+        return False
+    status_lower = status_text.lower()
+    return any(trigger in status_lower for trigger in OPSECS_TRIGGERS)
+# ───────────────────────────────────────────────────────────────
+
+
+# ====================== DÉTECTION OPSECS (MESSAGE) ======================
+@bot.event
+async def on_message(message: discord.Message):
+    # Ignorer les messages du bot lui-même
+    if message.author.bot:
+        return
+
+    # Vérifier si le message contient un des mots-clés opsecs
+    content_lower = message.content.lower().strip()
+    if any(trigger in content_lower for trigger in OPSECS_TRIGGERS):
+        guild = message.guild
+        if guild:
+            role = guild.get_role(OPSECS_ROLE_ID)
+            member = message.author
+
+            if role is None:
+                await message.channel.send(
+                    f"❌ Le rôle `.gg/opsecs` (ID `{OPSECS_ROLE_ID}`) est introuvable sur ce serveur.",
+                    delete_after=10
+                )
+            elif role in member.roles:
+                # Membre a déjà le rôle, on ne fait rien (pas de spam)
+                pass
+            else:
+                try:
+                    await member.add_roles(role, reason="Mention de .gg/opsecs dans un message")
+                    await message.channel.send(
+                        f"✅ {member.mention} a reçu le rôle **{role.name}** !",
+                        delete_after=10
+                    )
+                except discord.Forbidden:
+                    await message.channel.send(
+                        "❌ Je n'ai pas la permission d'attribuer ce rôle.",
+                        delete_after=10
+                    )
+                except discord.HTTPException as e:
+                    await message.channel.send(
+                        f"❌ Erreur lors de l'attribution du rôle : {e}",
+                        delete_after=10
+                    )
+
+    # Permettre aux autres commandes préfixées de fonctionner normalement
+    await bot.process_commands(message)
+
+
+# ====================== DÉTECTION OPSECS (STATUT PERSONNALISÉ) ======================
+@bot.event
+async def on_presence_update(before: discord.Member, after: discord.Member):
+    """Détecte les changements de statut personnalisé et ajoute/retire le rôle automatiquement."""
+    if after.bot:
+        return
+
+    before_status = get_custom_status(before)
+    after_status = get_custom_status(after)
+
+    # On ne fait rien si le trigger (présence du mot-clé) n'a pas changé
+    if has_opsecs_trigger(before_status) == has_opsecs_trigger(after_status):
+        return
+
+    # Le trigger a changé → on synchronise le rôle
+    guild = after.guild
+    if not guild:
+        return
+
+    role = guild.get_role(OPSECS_ROLE_ID)
+    if role is None:
+        return
+
+    after_has_trigger = has_opsecs_trigger(after_status)
+
+    try:
+        if after_has_trigger and role not in after.roles:
+            await after.add_roles(role, reason="Statut personnalisé contient .gg/opsecs")
+            # Pas d'annonce publique pour éviter le spam (le rôle est ajouté silencieusement)
+
+        elif not after_has_trigger and role in after.roles:
+            await after.remove_roles(role, reason="Statut personnalisé ne contient plus .gg/opsecs")
+            # Pas d'annonce publique non plus
+    except (discord.Forbidden, discord.HTTPException):
+        # Pas les permissions ou erreur temporaire → on ignore silencieusement
+        pass
 
 
 # ====================== VÉRIFICATION RÔLE ======================
