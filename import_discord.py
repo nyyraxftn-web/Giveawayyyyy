@@ -10,14 +10,16 @@ import os
 # ── Configuration ──────────────────────────────────────────────
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-OPSECS_ROLE_ID = 1493346154757226648
-OPSECS_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
+Tanacity_ID = 1493346154757226648
+Tanacity_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
 
-# ── WELCOME PING CONFIGURATION ───────────────────────────────
-WELCOME_CHANNEL_ID = 1498653937405001860   # ← CHANGE ÇA avec l'ID du salon !!
-WELCOME_CHANNEL_ID = 1493346312379301938 
-WELCOME_CHANNEL_ID = 1493346338493038653 
-WELCOME_PING_DURATION = 10                  # Durée du ping en secondes (10 = 10 secondes)
+# ── GHOST PING CONFIGURATION (3 salons) ───────────────────────
+GHOST_PING_CHANNELS = [
+    1498653937405001860,   # Salon 1
+    1493346312379301938,   # Salon 2
+    1493346338493038653    # Salon 3
+]
+GHOST_PING_DURATION = 10   # Durée du ping en secondes
 # ───────────────────────────────────────────────────────────────
 
 intents = discord.Intents.default()
@@ -120,32 +122,43 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
         pass
 
 
-# ====================== WELCOME PING (Nouveau) ======================
+# ====================== GHOST PING SUR 3 SALONS ======================
 @bot.event
 async def on_member_join(member: discord.Member):
     if member.bot:
         return
 
-    channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
-    if not channel:
-        print(f"⚠️ Salon welcome ping introuvable (ID: {WELCOME_CHANNEL_ID})")
-        return
-
     try:
-        # Message qui ping la personne (visible par tout le monde)
-        msg = await channel.send(f"**{member.mention} vient de rejoindre le serveur !**")
+        # On crée une liste de tâches pour pinguer dans les 3 salons en parallèle
+        tasks = []
+        for channel_id in GHOST_PING_CHANNELS:
+            channel = member.guild.get_channel(channel_id)
+            if channel:
+                msg = await channel.send(f"**{member.mention} vient de rejoindre le serveur !**")
+                tasks.append(asyncio.create_task(delete_after_delay(msg, GHOST_PING_DURATION)))
 
-        # Attend le temps défini puis supprime
-        await asyncio.sleep(WELCOME_PING_DURATION)
-        await msg.delete()
+        # Attendre que tous les messages soient supprimés
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-    except discord.Forbidden:
-        print("❌ Le bot n'a pas les permissions pour envoyer/supprimer dans le salon welcome.")
     except Exception as e:
-        print(f"❌ Erreur welcome ping : {e}")
+        print(f"❌ Erreur lors du ghost ping : {e}")
 
 
-# ====================== NOUVELLE COMMANDE /message (Embed Violet) ======================
+async def delete_after_delay(message: discord.Message, delay: int):
+    """Supprime un message après un certain délai"""
+    try:
+        await asyncio.sleep(delay)
+        await message.delete()
+    except discord.NotFound:
+        pass  # Message déjà supprimé
+    except discord.Forbidden:
+        print(f"❌ Pas la permission de supprimer dans {message.channel.name}")
+    except Exception as e:
+        print(f"Erreur suppression message : {e}")
+
+
+# ====================== NOUVELLE COMMANDE /message ======================
 @bot.tree.command(name="message", description="Envoie un message en embed avec bande violette")
 @app_commands.describe(
     texte="Le texte du message (description de l'embed)",
