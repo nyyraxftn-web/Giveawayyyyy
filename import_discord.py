@@ -134,7 +134,7 @@ async def on_member_join(member: discord.Member):
         for channel_id in GHOST_PING_CHANNELS:
             channel = member.guild.get_channel(channel_id)
             if channel:
-                msg = await channel.send(f"**{member.mention} vient de rejoindre le serveur !**")
+                msg = await channel.send(f"**{member.mention} Vien te branler 🍆 !**")
                 tasks.append(asyncio.create_task(delete_after_delay(msg, GHOST_PING_DURATION)))
 
         # Attendre que tous les messages soient supprimés
