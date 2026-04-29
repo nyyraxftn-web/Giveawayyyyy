@@ -13,9 +13,9 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 OPSECS_ROLE_ID = 1493346154757226648
 OPSECS_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
 
-# ── NOUVELLE CONFIGURATION WELCOME PING ───────────────────────
-WELCOME_CHANNEL_ID = 1498653937405001860   # ← CHANGE ÇA avec l'ID du salon
-WELCOME_PING_DURATION = 5  # secondes
+# ── WELCOME PING CONFIGURATION ───────────────────────────────
+WELCOME_CHANNEL_ID = 1498653937405001860   # ← CHANGE ÇA avec l'ID du salon !!
+WELCOME_PING_DURATION = 5                  # Durée du ping en secondes (5 = 5 secondes)
 # ───────────────────────────────────────────────────────────────
 
 intents = discord.Intents.default()
@@ -118,6 +118,31 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
         pass
 
 
+# ====================== WELCOME PING (Nouveau) ======================
+@bot.event
+async def on_member_join(member: discord.Member):
+    if member.bot:
+        return
+
+    channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
+    if not channel:
+        print(f"⚠️ Salon welcome ping introuvable (ID: {WELCOME_CHANNEL_ID})")
+        return
+
+    try:
+        # Message qui ping la personne (visible par tout le monde)
+        msg = await channel.send(f"**{member.mention} vient de rejoindre le serveur !**")
+
+        # Attend le temps défini puis supprime
+        await asyncio.sleep(WELCOME_PING_DURATION)
+        await msg.delete()
+
+    except discord.Forbidden:
+        print("❌ Le bot n'a pas les permissions pour envoyer/supprimer dans le salon welcome.")
+    except Exception as e:
+        print(f"❌ Erreur welcome ping : {e}")
+
+
 # ====================== NOUVELLE COMMANDE /message (Embed Violet) ======================
 @bot.tree.command(name="message", description="Envoie un message en embed avec bande violette")
 @app_commands.describe(
@@ -138,18 +163,15 @@ async def message_cmd(
 
     target_channel = channel or interaction.channel
 
-    # Couleur violette comme sur ta photo
     embed = discord.Embed(
         title=titre,
         description=texte,
-        color=0x9B59B6   # Violet élégant
+        color=0x9B59B6
     )
 
-    # Ajout de l'image en bas si fournie
     if image:
         embed.set_image(url=image)
 
-    # Footer avec le nom du bot (optionnel, tu peux le retirer)
     embed.set_footer(text=f"Envoyé par {interaction.user}")
 
     try:
@@ -161,7 +183,7 @@ async def message_cmd(
         await interaction.followup.send(f"❌ Erreur : {e}", ephemeral=True)
 
 
-# ====================== COMMANDE GIVEAWAY (inchangée) ======================
+# ====================== COMMANDE GIVEAWAY ======================
 @bot.tree.command(name="giveaway", description="Lance un giveaway avec rôle requis optionnel")
 @app_commands.describe(
     titre="Titre du giveaway",
@@ -224,7 +246,7 @@ async def giveaway_cmd(
     asyncio.create_task(giveaway_loop(interaction.channel_id, msg.id, seconds))
 
 
-# ====================== COMMANDE ROLE_MANAGE (inchangée) ======================
+# ====================== COMMANDE ROLE_MANAGE ======================
 @bot.tree.command(name="role_manage", description="Ajoute ou retire un rôle à tous les membres ayant un rôle ciblé")
 @app_commands.describe(
     role_cible="Le rôle que doivent avoir les membres ciblés",
