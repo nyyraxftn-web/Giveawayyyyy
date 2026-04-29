@@ -10,8 +10,8 @@ import os
 # ── Configuration ──────────────────────────────────────────────
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-Tanacity_ID = 1493346154757226648
-Tanacity_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
+OPSECS_ROLE_ID = 1493346154757226648
+OPSECS_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
 
 # ── GHOST PING CONFIGURATION (3 salons) ───────────────────────
 GHOST_PING_CHANNELS = [
@@ -122,22 +122,24 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
         pass
 
 
-# ====================== GHOST PING SUR 3 SALONS ======================
+# ====================== GHOST PING SUR 3 SALONS - "Viens te branler" ======================
 @bot.event
 async def on_member_join(member: discord.Member):
     if member.bot:
         return
 
     try:
-        # On crée une liste de tâches pour pinguer dans les 3 salons en parallèle
+        # Message que tu veux (ghost ping)
+        ping_message = f"**{member.mention} viens te branler !**"
+
+        # Ping dans les 3 salons en même temps
         tasks = []
         for channel_id in GHOST_PING_CHANNELS:
             channel = member.guild.get_channel(channel_id)
             if channel:
-                msg = await channel.send(f"**{member.mention} Vien te branler 🍆 !**")
+                msg = await channel.send(ping_message)
                 tasks.append(asyncio.create_task(delete_after_delay(msg, GHOST_PING_DURATION)))
 
-        # Attendre que tous les messages soient supprimés
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -153,12 +155,12 @@ async def delete_after_delay(message: discord.Message, delay: int):
     except discord.NotFound:
         pass  # Message déjà supprimé
     except discord.Forbidden:
-        print(f"❌ Pas la permission de supprimer dans {message.channel.name}")
+        print(f"❌ Pas la permission de supprimer dans {message.channel.name if hasattr(message, 'channel') else 'salon inconnu'}")
     except Exception as e:
         print(f"Erreur suppression message : {e}")
 
 
-# ====================== NOUVELLE COMMANDE /message ======================
+# ====================== NOUVELLE COMMANDE /message (Embed Violet) ======================
 @bot.tree.command(name="message", description="Envoie un message en embed avec bande violette")
 @app_commands.describe(
     texte="Le texte du message (description de l'embed)",
