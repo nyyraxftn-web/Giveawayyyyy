@@ -15,7 +15,7 @@ OPSECS_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
 
 # ── WELCOME PING CONFIGURATION ───────────────────────────────
 WELCOME_CHANNEL_ID = 1498653937405001860   # ← CHANGE ÇA avec l'ID du salon !!
-WELCOME_PING_DURATION = 5                  # Durée du ping en secondes (5 = 5 secondes)
+WELCOME_PING_DURATION = 10                  # Durée du ping en secondes (10 = 10 secondes)
 # ───────────────────────────────────────────────────────────────
 
 intents = discord.Intents.default()
