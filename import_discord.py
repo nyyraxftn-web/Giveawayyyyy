@@ -10,8 +10,8 @@ import os
 # ── Configuration ──────────────────────────────────────────────
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-OPSECS_ROLE_ID = 1469989510514217023
-OPSECS_TRIGGERS = {"/opsecs", "discord.gg/opsecs", ".gg/opsecs"}
+OPSECS_ROLE_ID = 1493346154757226648
+OPSECS_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
 # ───────────────────────────────────────────────────────────────
 
 intents = discord.Intents.default()
