@@ -12,6 +12,10 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 OPSECS_ROLE_ID = 1493346154757226648
 OPSECS_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
+
+# ── NOUVELLE CONFIGURATION WELCOME PING ───────────────────────
+WELCOME_CHANNEL_ID = 1498653937405001860   # ← CHANGE ÇA avec l'ID du salon
+WELCOME_PING_DURATION = 5  # secondes
 # ───────────────────────────────────────────────────────────────
 
 intents = discord.Intents.default()
