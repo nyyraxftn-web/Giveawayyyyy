@@ -13,11 +13,12 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 OPSECS_ROLE_ID = 1493346154757226648
 OPSECS_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
 
-# ── GHOST PING CONFIGURATION (3 salons) ───────────────────────
+# ── GHOST PING CONFIGURATION (4 salons maintenant) ───────────────────────
 GHOST_PING_CHANNELS = [
     1498653937405001860,   # Salon 1
     1493346312379301938,   # Salon 2
-    1493346338493038653    # Salon 3
+    1493346338493038653,   # Salon 3
+    1499390694958043372    # Salon 4 - Nouveau salon ajouté
 ]
 GHOST_PING_DURATION = 10   # Durée du ping en secondes
 # ───────────────────────────────────────────────────────────────
@@ -122,7 +123,7 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
         pass
 
 
-# ====================== GHOST PING SUR 3 SALONS - "Viens te branler" ======================
+# ====================== GHOST PING SUR 4 SALONS - "Viens te branler" ======================
 @bot.event
 async def on_member_join(member: discord.Member):
     if member.bot:
@@ -132,7 +133,7 @@ async def on_member_join(member: discord.Member):
         # Message que tu veux (ghost ping)
         ping_message = f"**{member.mention} viens te branler !**"
 
-        # Ping dans les 3 salons en même temps
+        # Ping dans les 4 salons en même temps
         tasks = []
         for channel_id in GHOST_PING_CHANNELS:
             channel = member.guild.get_channel(channel_id)
