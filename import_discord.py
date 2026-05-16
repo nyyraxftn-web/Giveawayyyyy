@@ -13,12 +13,13 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 OPSECS_ROLE_ID = 1493346154757226648
 OPSECS_TRIGGERS = {"/tanacity", "discord.gg/tanacity", ".gg/tanacity"}
 
-# ── GHOST PING CONFIGURATION (4 salons maintenant) ───────────────────────
+# ── GHOST PING CONFIGURATION (5 salons maintenant) ───────────────────────
 GHOST_PING_CHANNELS = [
     1498653937405001860,   # Salon 1
     1493346312379301938,   # Salon 2
     1493346338493038653,   # Salon 3
-    1499390694958043372    # Salon 4 - Nouveau salon ajouté
+    1499390694958043372,   # Salon 4
+    1505339856987885588    # Salon 5 - Nouveau salon ajouté
 ]
 GHOST_PING_DURATION = 10   # Durée du ping en secondes
 # ───────────────────────────────────────────────────────────────
@@ -123,17 +124,15 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
         pass
 
 
-# ====================== GHOST PING SUR 4 SALONS - "Viens te branler" ======================
+# ====================== GHOST PING SUR 5 SALONS ======================
 @bot.event
 async def on_member_join(member: discord.Member):
     if member.bot:
         return
 
     try:
-        # Message que tu veux (ghost ping)
         ping_message = f"**{member.mention} viens te branler !**"
 
-        # Ping dans les 4 salons en même temps
         tasks = []
         for channel_id in GHOST_PING_CHANNELS:
             channel = member.guild.get_channel(channel_id)
@@ -154,14 +153,14 @@ async def delete_after_delay(message: discord.Message, delay: int):
         await asyncio.sleep(delay)
         await message.delete()
     except discord.NotFound:
-        pass  # Message déjà supprimé
+        pass
     except discord.Forbidden:
         print(f"❌ Pas la permission de supprimer dans {message.channel.name if hasattr(message, 'channel') else 'salon inconnu'}")
     except Exception as e:
         print(f"Erreur suppression message : {e}")
 
 
-# ====================== NOUVELLE COMMANDE /message (Embed Violet) ======================
+# ====================== COMMANDE /message (Embed Violet) ======================
 @bot.tree.command(name="message", description="Envoie un message en embed avec bande violette")
 @app_commands.describe(
     texte="Le texte du message (description de l'embed)",
